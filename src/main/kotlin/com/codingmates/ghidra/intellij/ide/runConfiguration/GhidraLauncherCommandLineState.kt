@@ -30,6 +30,7 @@ class GhidraLauncherCommandLineState(
         }
         javaParameters.programParametersList.addParametersString(configuration.getArgs())
         javaParameters.vmParametersList.addAll(GHIDRA_CLI_OPTS)
+        javaParameters.vmParametersList.add("-Dghidra.external.modules=${environment.project.basePath}")
         JavaParametersUtil.configureProject(
             project,
             javaParameters,
