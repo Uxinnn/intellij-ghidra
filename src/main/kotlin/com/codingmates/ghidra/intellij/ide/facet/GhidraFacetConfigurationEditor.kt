@@ -1,8 +1,8 @@
 package com.codingmates.ghidra.intellij.ide.facet
 
 import com.codingmates.ghidra.intellij.ide.GhidraBundle
-import com.codingmates.ghidra.intellij.ide.facet.model.isGhidraInstallationPath
-import com.codingmates.ghidra.intellij.ide.facet.model.isGhidraSourcesPath
+import com.codingmates.ghidra.intellij.ide.model.isGhidraInstallationPath
+import com.codingmates.ghidra.intellij.ide.model.isGhidraSourcesPath
 import com.intellij.facet.ui.FacetEditorContext
 import com.intellij.facet.ui.FacetEditorTab
 import com.intellij.facet.ui.FacetEditorValidator

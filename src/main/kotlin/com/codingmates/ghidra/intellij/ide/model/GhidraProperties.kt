@@ -1,4 +1,4 @@
-package com.codingmates.ghidra.intellij.ide.facet.model
+package com.codingmates.ghidra.intellij.ide.model
 
 import com.intellij.util.lang.UrlClassLoader
 import java.nio.file.Files

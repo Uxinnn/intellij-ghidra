@@ -17,6 +17,8 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.XmlSerializerUtil
 import org.jdom.Element
+import java.nio.file.Path
+import kotlin.io.path.Path
 
 
 class GhidraLauncherConfiguration(
@@ -29,6 +31,14 @@ class GhidraLauncherConfiguration(
     ConfigurationWithCommandLineShortener,
     SearchScopeProvidingRunProfile,
     RunProfileWithCompileBeforeLaunchOption {
+
+    private val _envs: MutableMap<String, String> = LinkedHashMap()
+    private var backingRunConfigurationModule: JavaRunConfigurationModule = JavaRunConfigurationModule(project, true)
+    private var state = GhidraLauncherConfigurationBean()
+
+    init {
+        state.vmParameters = "-Xmx2560m"
+    }
 
     override fun checkConfiguration() {
         JavaParametersUtil.checkAlternativeJRE(this)
@@ -128,7 +138,7 @@ class GhidraLauncherConfiguration(
         state.alternativeJrePathEnabled = enabled
     }
 
-    fun setArgs(args: String?){
+    fun setArgs(args: String?) {
         state.args = args
     }
 
@@ -136,12 +146,20 @@ class GhidraLauncherConfiguration(
         state.isHeadless = check
     }
 
-    fun getArgs(): String?{
+    fun setGhidraPath(path: String) {
+        state.ghidraPath = path
+    }
+
+    fun getArgs(): String? {
         return state.args
     }
 
     fun getHeadless(): Boolean {
         return state.isHeadless
+    }
+
+    fun getGhidraPath(): String {
+        return state.ghidraPath
     }
 
     override fun setEnvs(envs: Map<String, String>) {
@@ -152,8 +170,8 @@ class GhidraLauncherConfiguration(
     override fun setPassParentEnvs(passParentEnvs: Boolean) {
         state.passParentEnvironments = passParentEnvs
     }
-
     override fun setProgramParameters(value: String?) {}
+
     override fun setVMParameters(value: String?) {
         state.vmParameters = value ?: ""
     }
@@ -175,25 +193,6 @@ class GhidraLauncherConfiguration(
         }
     }
 
-    private val _envs: MutableMap<String, String> = LinkedHashMap()
-    private var backingRunConfigurationModule: JavaRunConfigurationModule = JavaRunConfigurationModule(project, true)
-    private var state = GhidraLauncherConfigurationBean()
-
-    private data class GhidraLauncherConfigurationBean(
-        var alternativeJrePath: String? = "",
-        var alternativeJrePathEnabled: Boolean = true,
-        var passParentEnvironments: Boolean = true,
-        var shortenCommandLine: ShortenCommandLine? = null,
-        var vmParameters: String = "",
-        var args: String? = "",
-        var isHeadless: Boolean = false,
-        var workingDirectory: String? = null,
-    )
-
-    init {
-        state.vmParameters = "-Xmx2560m"
-    }
-
     override fun getShortenCommandLine(): ShortenCommandLine? {
         return state.shortenCommandLine
     }
@@ -201,4 +200,16 @@ class GhidraLauncherConfiguration(
     override fun setShortenCommandLine(mode: ShortenCommandLine?) {
         state.shortenCommandLine = mode
     }
+
+    private data class GhidraLauncherConfigurationBean(
+        var alternativeJrePath: String? = "",
+        var alternativeJrePathEnabled: Boolean = false,
+        var passParentEnvironments: Boolean = true,
+        var shortenCommandLine: ShortenCommandLine? = null,
+        var vmParameters: String = "",
+        var args: String? = "",
+        var isHeadless: Boolean = false,
+        var workingDirectory: String? = null,
+        var ghidraPath: String = ""
+    )
 }

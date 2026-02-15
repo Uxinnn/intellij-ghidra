@@ -13,6 +13,7 @@
         <programRunner id="Run" implementation="com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherRunner"/>
         <programRunner id="Debug" implementation="com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherDebugRunner"/>
         <facetType implementation="com.codingmates.ghidra.intellij.ide.facet.GhidraFacetType" />
+        <moduleBuilder builderClass="com.codingmates.ghidra.intellij.ide.newProjectWizard.GhidraNewProjectWizard$Builder" />
     </extensions>
 
     <actions>
