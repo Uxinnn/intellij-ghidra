@@ -6,14 +6,12 @@ import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfig
 import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfigurationType
 import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.ConfigurationTypeUtil
+import com.intellij.ide.projectWizard.projectWizardJdkComboBox
 import com.intellij.ide.wizard.AbstractNewProjectWizardStep
 import com.intellij.ide.wizard.NewProjectWizardStep
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.module.Module
-import com.intellij.openapi.module.ModuleManager
-import com.intellij.openapi.module.StdModuleTypes
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.ModuleRootModificationUtil
@@ -21,7 +19,6 @@ import com.intellij.openapi.roots.OrderRootType
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.roots.libraries.Library
 import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar
-import com.intellij.openapi.roots.ui.configuration.sdkComboBox
 import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withPathToTextConvertor
 import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withTextToPathConvertor
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
@@ -38,22 +35,39 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.Path
+import com.intellij.ide.JavaUiBundle
+import com.intellij.ide.highlighter.ModuleFileType
+import com.intellij.ui.dsl.builder.whenItemSelectedFromUi
+import com.intellij.ide.projectWizard.NewProjectWizardCollector.BuildSystem.logSdkChanged
+import com.intellij.ide.projectWizard.NewProjectWizardCollector.BuildSystem.logSdkFinished
+import com.intellij.ide.projectWizard.generators.JdkDownloadService
+import com.intellij.ide.util.projectWizard.JavaModuleBuilder
+import com.intellij.ide.wizard.setupProjectFromBuilder
+import com.intellij.openapi.components.service
+import com.intellij.openapi.observable.properties.GraphProperty
+import com.intellij.openapi.projectRoots.impl.jdkDownloader.JdkDownloadTask
+import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownloadTask
+import com.intellij.openapi.util.io.FileUtil
+import com.intellij.ui.dsl.builder.BottomGap
+import com.intellij.openapi.util.Pair
 
 
 class GhidraStep(parent: NewProjectWizardStep) :
     AbstractNewProjectWizardStep(parent), GhidraData {
     // Whether project is a Ghidra script or module
-    private val typeProperty = propertyGraph.property(GhidraProjectType.Module)
+    override val typeProperty = propertyGraph.property(GhidraProjectType.Module)
     override var type: GhidraProjectType by typeProperty
     // Path to Ghidra installation
-    private val pathProperty = propertyGraph.property("")
+    override val pathProperty = propertyGraph.property("")
     override var path: String by pathProperty
     private val ghidraPathField = TextFieldWithBrowseButton()
     // JDK to use
-    private val sdkProperty = propertyGraph.property<Sdk?>(null)
+    override val sdkProperty: GraphProperty<Sdk?> = propertyGraph.property(null)
     override var sdk: Sdk? by sdkProperty
+    override val sdkDownloadTaskProperty: GraphProperty<SdkDownloadTask?> = propertyGraph.property(null)
+    override var sdkDownloadTask: SdkDownloadTask? by sdkDownloadTaskProperty
     // Ghidra modules
-    private val ghidraModulesProperty = propertyGraph.property<Map<String, String>>(emptyMap())
+    override val ghidraModulesProperty = propertyGraph.property<Map<String, String>>(emptyMap())
     override var ghidraModules: Map<String, String> by ghidraModulesProperty
 
 
@@ -63,29 +77,39 @@ class GhidraStep(parent: NewProjectWizardStep) :
 
     override fun setupUI(builder: Panel) {
         with(builder) {
-            row(GhidraBundle.message("ghidra.facet.editor.installation")) {
-                val title = GhidraBundle.message("ghidra.facet.editor.installation.dialog.title")
-                val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
-                    .withPathToTextConvertor(::getPresentablePath)
-                    .withTextToPathConvertor(::getCanonicalPath)
-                    .withTitle(title)
-                ghidraPathField.addBrowseFolderListener(
-                    title,
-                    GhidraBundle.message("ghidra.facet.editor.installation.dialog.desc"),
-                    context.project,
-                    fileChooserDescriptor
-                )
-                cell(ghidraPathField)
-                    .applyToComponent { setEmptyState(GhidraBundle.message("ghidra.facet.editor.installation.empty")) }
-                    .align(AlignX.FILL)
-            }
-            row("Project Type:") {
-                comboBox(GhidraProjectType.entries).bindItem(typeProperty)
-            }
-            row("JDK: ") {  // Handles the setting of project JDK too
-                sdkComboBox(context, sdkProperty, "Ghidra JDK")
-            }
+            setupGhidraSettingsUI(this)
+            setupJavaSdkUI(this)
         }
+    }
+
+    fun setupGhidraSettingsUI(builder: Panel) {
+        builder.row(GhidraBundle.message("ghidra.facet.editor.installation")) {
+            val title = GhidraBundle.message("ghidra.facet.editor.installation.dialog.title")
+            val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                .withPathToTextConvertor(::getPresentablePath)
+                .withTextToPathConvertor(::getCanonicalPath)
+                .withTitle(title)
+            ghidraPathField.addBrowseFolderListener(
+                title,
+                GhidraBundle.message("ghidra.facet.editor.installation.dialog.desc"),
+                context.project,
+                fileChooserDescriptor
+            )
+            cell(ghidraPathField)
+                .applyToComponent { setEmptyState(GhidraBundle.message("ghidra.facet.editor.installation.empty")) }
+                .align(AlignX.FILL)
+        }
+        builder.row("Project Type:") {
+            comboBox(GhidraProjectType.entries).bindItem(typeProperty)
+        }
+    }
+
+    fun setupJavaSdkUI(builder: Panel) {
+        builder.row(JavaUiBundle.message("label.project.wizard.new.project.jdk")) {
+            projectWizardJdkComboBox(this, sdkProperty, sdkDownloadTaskProperty)
+                .whenItemSelectedFromUi { logSdkChanged(sdk) }
+                .onApply { logSdkFinished(sdk) }
+        }.bottomGap(BottomGap.SMALL)
     }
 
     override fun setupProject(project: Project) {
@@ -93,14 +117,44 @@ class GhidraStep(parent: NewProjectWizardStep) :
         pathProperty.set(ghidraPathField.text)
         ghidraData?.resolve()
 
+        // Set up Module
+        val builder = JavaModuleBuilder()
+        configureModuleBuilder(project, builder)
+        val module = setupProjectFromBuilder(project, builder)
+        module?.let(::startJdkDownloadIfNeeded)
+        ApplicationManager.getApplication().runWriteAction {
+            val ghidraLib = createGhidraLibrary(project)
+            module?.let { ModuleRootModificationUtil.addDependency(it, ghidraLib) }
+        }
         createRunConfigInstance(project)
-        if (type == GhidraProjectType.Script) {
-            val module = createRootModule(project)
+    }
 
-            ApplicationManager.getApplication().runWriteAction {
-                val ghidraLib = createGhidraLibrary(project)
-                ModuleRootModificationUtil.addDependency(module, ghidraLib)
-            }
+    private fun configureModuleBuilder(project: Project, builder: JavaModuleBuilder) {
+        val basePath = Path(project.basePath ?: error(GhidraBundle.message("ghidra.wizard.path.error")))
+        val moduleFileLocation = basePath.toString()
+        val moduleName = project.name
+        val moduleFile = Paths.get(moduleFileLocation, moduleName + ModuleFileType.DOT_DEFAULT_EXTENSION)
+
+        builder.name = moduleName
+        builder.moduleFilePath = FileUtil.toSystemDependentName(moduleFile.toString())
+        builder.addSourcePath(Pair.create(FileUtil.toSystemDependentName(moduleFileLocation), ""))
+
+        if (context.isCreatingNewProject) {
+            // New project with a single module: set project JDK
+            context.projectJdk = sdk
+        }
+        else {
+            // New module in an existing project: set module JDK
+            val isSameSdk = ProjectRootManager.getInstance(project).projectSdk?.name == sdk?.name
+            builder.moduleJdk = if (isSameSdk) null else sdk
+        }
+    }
+
+    private fun startJdkDownloadIfNeeded(module: Module) {
+        val sdkDownloadTask = sdkDownloadTask
+        if (sdkDownloadTask is JdkDownloadTask) {
+            // Download the SDK on project creation
+            module.project.service<JdkDownloadService>().scheduleDownloadJdk(sdkDownloadTask, module, context.isCreatingNewProject)
         }
     }
 
@@ -112,7 +166,7 @@ class GhidraStep(parent: NewProjectWizardStep) :
             .findConfigurationType(GhidraLauncherConfigurationType::class.java)
             .configurationFactories
             .firstOrNull()
-            ?: error("Failed to create GhidraLauncherConfigurationType")
+            ?: error(GhidraBundle.message("ghidra.wizard.runconfig.type.error"))
         val settings = runManager.createConfiguration(
             "Ghidra",
             factory,
@@ -124,33 +178,6 @@ class GhidraStep(parent: NewProjectWizardStep) :
         }
         runManager.addConfiguration(settings)
         runManager.selectedConfiguration = settings
-    }
-
-    private fun createRootModule(project: Project): Module {
-        // Create new module
-        val moduleManager = ModuleManager.getInstance(project)
-        val basePath = Path(project.basePath ?: error("Cannot find project base path."))
-        val modulePath = basePath.resolve("${project.name}.iml")
-        val module = WriteAction.compute<Module, Throwable> {
-            val modifiableModel = moduleManager.getModifiableModel()
-            val newModule = modifiableModel.newModule(modulePath, StdModuleTypes.JAVA.id)
-            modifiableModel.commit()
-            newModule
-        }
-
-        // Configure new module
-        WriteAction.run<RuntimeException> {
-            ModuleRootModificationUtil.updateModel(module) { rootModel ->
-                val baseDir = project.baseDir!!
-                val contentEntry = rootModel.addContentEntry(baseDir)
-                contentEntry.addSourceFolder(baseDir, false)
-                sdkProperty.get()?.let { sdk ->
-                    rootModel.sdk = sdk
-                }
-            }
-        }
-
-        return module
     }
 
     private fun createGhidraLibrary(
