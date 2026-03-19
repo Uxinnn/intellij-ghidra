@@ -1,6 +1,8 @@
 package com.codingmates.ghidra.intellij.ide.newProjectWizard
 
 import com.codingmates.ghidra.intellij.ide.GhidraBundle
+import com.codingmates.ghidra.intellij.ide.model.isGhidraInstallationPath
+import com.codingmates.ghidra.intellij.ide.model.isGhidraSourcesPath
 import com.codingmates.ghidra.intellij.ide.newProjectWizard.GhidraData.Companion.ghidraData
 import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfiguration
 import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfigurationType
@@ -21,10 +23,8 @@ import com.intellij.openapi.roots.libraries.Library
 import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar
 import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withPathToTextConvertor
 import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withTextToPathConvertor
-import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.getCanonicalPath
 import com.intellij.openapi.ui.getPresentablePath
-import com.intellij.openapi.ui.setEmptyState
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
@@ -45,11 +45,15 @@ import com.intellij.ide.util.projectWizard.JavaModuleBuilder
 import com.intellij.ide.wizard.setupProjectFromBuilder
 import com.intellij.openapi.components.service
 import com.intellij.openapi.observable.properties.GraphProperty
+import com.intellij.openapi.observable.util.toUiPathProperty
 import com.intellij.openapi.projectRoots.impl.jdkDownloader.JdkDownloadTask
 import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownloadTask
+import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.ui.dsl.builder.BottomGap
 import com.intellij.openapi.util.Pair
+import com.intellij.ui.dsl.builder.bindText
+import com.intellij.ui.layout.ValidationInfoBuilder
 
 
 class GhidraStep(parent: NewProjectWizardStep) :
@@ -60,7 +64,6 @@ class GhidraStep(parent: NewProjectWizardStep) :
     // Path to Ghidra installation
     override val pathProperty = propertyGraph.property("")
     override var path: String by pathProperty
-    private val ghidraPathField = TextFieldWithBrowseButton()
     // JDK to use
     override val sdkProperty: GraphProperty<Sdk?> = propertyGraph.property(null)
     override var sdk: Sdk? by sdkProperty
@@ -70,9 +73,9 @@ class GhidraStep(parent: NewProjectWizardStep) :
     override val ghidraModulesProperty = propertyGraph.property<Map<String, String>>(emptyMap())
     override var ghidraModules: Map<String, String> by ghidraModulesProperty
 
-
     init {
         data.putUserData(GhidraData.KEY, this)
+        pathProperty.set(GhidraNewProjectWizardState.lastPath)
     }
 
     override fun setupUI(builder: Panel) {
@@ -84,23 +87,19 @@ class GhidraStep(parent: NewProjectWizardStep) :
 
     fun setupGhidraSettingsUI(builder: Panel) {
         builder.row(GhidraBundle.message("ghidra.facet.editor.installation")) {
-            val title = GhidraBundle.message("ghidra.facet.editor.installation.dialog.title")
             val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                .withTitle(GhidraBundle.message("ghidra.facet.editor.installation.dialog.title"))
                 .withPathToTextConvertor(::getPresentablePath)
                 .withTextToPathConvertor(::getCanonicalPath)
-                .withTitle(title)
-            ghidraPathField.addBrowseFolderListener(
-                title,
-                GhidraBundle.message("ghidra.facet.editor.installation.dialog.desc"),
-                context.project,
-                fileChooserDescriptor
-            )
-            cell(ghidraPathField)
-                .applyToComponent { setEmptyState(GhidraBundle.message("ghidra.facet.editor.installation.empty")) }
+            textFieldWithBrowseButton(fileChooserDescriptor, context.project)
+                .bindText(pathProperty.toUiPathProperty())
                 .align(AlignX.FILL)
+                .validationOnInput { validateGhidraPath() }
+                .validationOnApply { validateGhidraPath() }
         }
         builder.row("Project Type:") {
-            comboBox(GhidraProjectType.entries).bindItem(typeProperty)
+            comboBox(GhidraProjectType.entries)
+                .bindItem(typeProperty)
         }
     }
 
@@ -114,8 +113,8 @@ class GhidraStep(parent: NewProjectWizardStep) :
 
     override fun setupProject(project: Project) {
         super.setupProject(project)
-        pathProperty.set(ghidraPathField.text)
         ghidraData?.resolve()
+        GhidraNewProjectWizardState.lastPath = path
 
         // Set up Module
         val builder = JavaModuleBuilder()
@@ -235,5 +234,15 @@ class GhidraStep(parent: NewProjectWizardStep) :
             }
             .mapNotNull(Path::toVfs)
         return classRoots
+    }
+
+    private fun ValidationInfoBuilder.validateGhidraPath(): ValidationInfo? {
+        if (!isGhidraInstallationPath(path)) {
+            return error(GhidraBundle.message("ghidra.facet.editor.installation.error.no-properties"))
+        }
+        if (isGhidraSourcesPath(path)) {
+            return error(GhidraBundle.message("ghidra.facet.editor.installation.error.sources"))
+        }
+        return null
     }
 }

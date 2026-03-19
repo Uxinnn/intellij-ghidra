@@ -2,9 +2,7 @@ package com.codingmates.ghidra.intellij.ide.newProjectWizard
 
 import com.codingmates.ghidra.intellij.ide.model.createApplicationLayoutProxy
 import com.codingmates.ghidra.intellij.ide.model.resolveGhidraModuleJar
-import com.intellij.ide.projectWizard.ProjectWizardJdkIntent
 import com.intellij.ide.wizard.NewProjectWizardStep
-import com.intellij.openapi.observable.properties.GraphProperty
 import com.intellij.openapi.observable.properties.ObservableMutableProperty
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownloadTask
@@ -16,13 +14,13 @@ import kotlin.io.path.Path
 
 interface GhidraData {
     val type: GhidraProjectType
-    val typeProperty: GraphProperty<GhidraProjectType>
+    val typeProperty: ObservableMutableProperty<GhidraProjectType>
     val path: String
-    val pathProperty: GraphProperty<String>
+    val pathProperty: ObservableMutableProperty<String>
     val sdk: Sdk?
-    val sdkProperty: GraphProperty<Sdk?>
+    val sdkProperty: ObservableMutableProperty<Sdk?>
     var ghidraModules: Map<String, String>
-    val ghidraModulesProperty: GraphProperty<Map<String, String>>
+    val ghidraModulesProperty: ObservableMutableProperty<Map<String, String>>
     val sdkDownloadTaskProperty: ObservableMutableProperty<SdkDownloadTask?>
     var sdkDownloadTask: SdkDownloadTask?
 
