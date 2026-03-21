@@ -21,15 +21,13 @@ interface GhidraData {
     val sdkProperty: ObservableMutableProperty<Sdk?>
     var ghidraModules: Map<String, String>
     val ghidraModulesProperty: ObservableMutableProperty<Map<String, String>>
-    val sdkDownloadTaskProperty: ObservableMutableProperty<SdkDownloadTask?>
     var sdkDownloadTask: SdkDownloadTask?
+    val sdkDownloadTaskProperty: ObservableMutableProperty<SdkDownloadTask?>
+    var addSampleCode: Boolean
+    val addSampleCodeProperty: ObservableMutableProperty<Boolean>
 
     companion object {
         val KEY: Key<GhidraData> = Key.create(GhidraData::class.java.name)
-
-        @JvmStatic
-        val NewProjectWizardStep.ghidraData: GhidraData?
-            get() = data.getUserData(KEY)
     }
 
     fun resolve() {

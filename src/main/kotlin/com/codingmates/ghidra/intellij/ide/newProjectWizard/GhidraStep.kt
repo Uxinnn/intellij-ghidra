@@ -3,7 +3,6 @@ package com.codingmates.ghidra.intellij.ide.newProjectWizard
 import com.codingmates.ghidra.intellij.ide.GhidraBundle
 import com.codingmates.ghidra.intellij.ide.model.isGhidraInstallationPath
 import com.codingmates.ghidra.intellij.ide.model.isGhidraSourcesPath
-import com.codingmates.ghidra.intellij.ide.newProjectWizard.GhidraData.Companion.ghidraData
 import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfiguration
 import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfigurationType
 import com.intellij.execution.RunManager
@@ -37,6 +36,8 @@ import java.nio.file.Paths
 import kotlin.io.path.Path
 import com.intellij.ide.JavaUiBundle
 import com.intellij.ide.highlighter.ModuleFileType
+import com.intellij.ide.projectWizard.NewProjectWizardCollector.Base.logAddSampleCodeChanged
+import com.intellij.ide.projectWizard.NewProjectWizardCollector.Base.logAddSampleCodeFinished
 import com.intellij.ui.dsl.builder.whenItemSelectedFromUi
 import com.intellij.ide.projectWizard.NewProjectWizardCollector.BuildSystem.logSdkChanged
 import com.intellij.ide.projectWizard.NewProjectWizardCollector.BuildSystem.logSdkFinished
@@ -52,7 +53,10 @@ import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.ui.dsl.builder.BottomGap
 import com.intellij.openapi.util.Pair
+import com.intellij.ui.UIBundle
+import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
+import com.intellij.ui.dsl.builder.whenStateChangedFromUi
 import com.intellij.ui.layout.ValidationInfoBuilder
 
 
@@ -72,6 +76,9 @@ class GhidraStep(parent: NewProjectWizardStep) :
     // Ghidra modules
     override val ghidraModulesProperty = propertyGraph.property<Map<String, String>>(emptyMap())
     override var ghidraModules: Map<String, String> by ghidraModulesProperty
+    // Add sample code or not
+    override val addSampleCodeProperty = propertyGraph.property(true)
+    override var addSampleCode: Boolean by addSampleCodeProperty
 
     init {
         data.putUserData(GhidraData.KEY, this)
@@ -101,6 +108,12 @@ class GhidraStep(parent: NewProjectWizardStep) :
             comboBox(GhidraProjectType.entries)
                 .bindItem(typeProperty)
         }
+        builder.row {
+            checkBox(UIBundle.message("label.project.wizard.new.project.add.sample.code"))
+                .bindSelected(addSampleCodeProperty)
+                .whenStateChangedFromUi { logAddSampleCodeChanged(it) }
+                .onApply { logAddSampleCodeFinished(addSampleCode) }
+        }
     }
 
     fun setupJavaSdkUI(builder: Panel) {
@@ -113,7 +126,7 @@ class GhidraStep(parent: NewProjectWizardStep) :
 
     override fun setupProject(project: Project) {
         super.setupProject(project)
-        ghidraData?.resolve()
+        resolve()
         GhidraNewProjectWizardState.lastPath = path
 
         // Set up Module
