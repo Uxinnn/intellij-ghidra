@@ -65,19 +65,22 @@ dependencies {
 // Exclude additional files from the built extension
 // Ex: buildExtension.exclude '.idea/**'
 
-configurations {
-    // 1. Make the ghidra_scripts implementation extend from main's implementation
-    ghidra_scriptsImplementation.extendsFrom implementation
-    ghidra_scriptsRuntimeOnly.extendsFrom runtimeOnly
-}
-
 sourceSets {
+    main {
+        java.srcDirs = ['src/main/java']
+    }
     ghidra_scripts {
         java {
             srcDir 'ghidra_scripts'
         }
-//        // This links the scripts to your main compiled classes and dependencies
+        // This links the scripts to your main compiled classes and dependencies
         compileClasspath += sourceSets.main.output
         runtimeClasspath += sourceSets.main.output
     }
+}
+
+configurations {
+    // 1. Make the ghidra_scripts implementation extend from main's implementation
+    ghidra_scriptsImplementation.extendsFrom implementation
+    ghidra_scriptsRuntimeOnly.extendsFrom runtimeOnly
 }

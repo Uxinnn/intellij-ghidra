@@ -14,7 +14,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.roots.OrderRootType
 import com.intellij.openapi.roots.ProjectRootManager
@@ -41,14 +40,14 @@ import com.intellij.ide.projectWizard.NewProjectWizardCollector.Base.logAddSampl
 import com.intellij.ui.dsl.builder.whenItemSelectedFromUi
 import com.intellij.ide.projectWizard.NewProjectWizardCollector.BuildSystem.logSdkChanged
 import com.intellij.ide.projectWizard.NewProjectWizardCollector.BuildSystem.logSdkFinished
+import com.intellij.ide.projectWizard.ProjectWizardJdkIntent
 import com.intellij.ide.projectWizard.generators.JdkDownloadService
 import com.intellij.ide.util.projectWizard.JavaModuleBuilder
 import com.intellij.ide.wizard.setupProjectFromBuilder
 import com.intellij.openapi.components.service
-import com.intellij.openapi.observable.properties.GraphProperty
 import com.intellij.openapi.observable.util.toUiPathProperty
+import com.intellij.openapi.observable.util.transform
 import com.intellij.openapi.projectRoots.impl.jdkDownloader.JdkDownloadTask
-import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownloadTask
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.ui.dsl.builder.BottomGap
@@ -69,10 +68,10 @@ class GhidraStep(parent: NewProjectWizardStep) :
     override val pathProperty = propertyGraph.property("")
     override var path: String by pathProperty
     // JDK to use
-    override val sdkProperty: GraphProperty<Sdk?> = propertyGraph.property(null)
-    override var sdk: Sdk? by sdkProperty
-    override val sdkDownloadTaskProperty: GraphProperty<SdkDownloadTask?> = propertyGraph.property(null)
-    override var sdkDownloadTask: SdkDownloadTask? by sdkDownloadTaskProperty
+    override val jdkIntentProperty = propertyGraph.property<ProjectWizardJdkIntent>(ProjectWizardJdkIntent.NoJdk)
+    override var jdkIntent by jdkIntentProperty
+    val sdkDownloadTaskProperty = jdkIntentProperty.transform { intent -> intent.downloadTask }
+    val sdkDownloadTask by sdkDownloadTaskProperty
     // Ghidra modules
     override val ghidraModulesProperty = propertyGraph.property<Map<String, String>>(emptyMap())
     override var ghidraModules: Map<String, String> by ghidraModulesProperty
@@ -118,9 +117,9 @@ class GhidraStep(parent: NewProjectWizardStep) :
 
     fun setupJavaSdkUI(builder: Panel) {
         builder.row(JavaUiBundle.message("label.project.wizard.new.project.jdk")) {
-            projectWizardJdkComboBox(this, sdkProperty, sdkDownloadTaskProperty)
-                .whenItemSelectedFromUi { logSdkChanged(sdk) }
-                .onApply { logSdkFinished(sdk) }
+            projectWizardJdkComboBox(this, jdkIntentProperty)
+                .whenItemSelectedFromUi { jdkIntent.javaVersion?.let { logSdkChanged(it.feature) } }
+                .onApply { jdkIntent.javaVersion?.let { logSdkFinished(it.feature) } }
         }.bottomGap(BottomGap.SMALL)
     }
 
@@ -151,14 +150,10 @@ class GhidraStep(parent: NewProjectWizardStep) :
         builder.moduleFilePath = FileUtil.toSystemDependentName(moduleFile.toString())
         builder.addSourcePath(Pair.create(FileUtil.toSystemDependentName(moduleFileLocation), ""))
 
-        if (context.isCreatingNewProject) {
-            // New project with a single module: set project JDK
-            context.projectJdk = sdk
-        }
-        else {
+        if (!context.isCreatingNewProject) {
             // New module in an existing project: set module JDK
-            val isSameSdk = ProjectRootManager.getInstance(project).projectSdk?.name == sdk?.name
-            builder.moduleJdk = if (isSameSdk) null else sdk
+            val isSameSdk = ProjectRootManager.getInstance(project).projectSdk?.name == jdkIntent.name
+            builder.moduleJdk = if (isSameSdk) null else context.projectJdk
         }
     }
 

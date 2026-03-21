@@ -2,10 +2,8 @@ package com.codingmates.ghidra.intellij.ide.newProjectWizard
 
 import com.codingmates.ghidra.intellij.ide.model.createApplicationLayoutProxy
 import com.codingmates.ghidra.intellij.ide.model.resolveGhidraModuleJar
-import com.intellij.ide.wizard.NewProjectWizardStep
+import com.intellij.ide.projectWizard.ProjectWizardJdkIntent
 import com.intellij.openapi.observable.properties.ObservableMutableProperty
-import com.intellij.openapi.projectRoots.Sdk
-import com.intellij.openapi.roots.ui.configuration.projectRoot.SdkDownloadTask
 import com.intellij.openapi.util.Key
 import com.intellij.util.lang.UrlClassLoader
 import java.io.File
@@ -17,12 +15,10 @@ interface GhidraData {
     val typeProperty: ObservableMutableProperty<GhidraProjectType>
     val path: String
     val pathProperty: ObservableMutableProperty<String>
-    val sdk: Sdk?
-    val sdkProperty: ObservableMutableProperty<Sdk?>
+    val jdkIntent: ProjectWizardJdkIntent
+    val jdkIntentProperty: ObservableMutableProperty<ProjectWizardJdkIntent>
     var ghidraModules: Map<String, String>
     val ghidraModulesProperty: ObservableMutableProperty<Map<String, String>>
-    var sdkDownloadTask: SdkDownloadTask?
-    val sdkDownloadTaskProperty: ObservableMutableProperty<SdkDownloadTask?>
     var addSampleCode: Boolean
     val addSampleCodeProperty: ObservableMutableProperty<Boolean>
 
