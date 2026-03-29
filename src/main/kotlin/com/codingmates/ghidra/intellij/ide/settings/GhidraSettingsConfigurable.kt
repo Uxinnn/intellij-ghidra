@@ -34,9 +34,9 @@ class GhidraSettingsConfigurable(var project: Project) : BoundConfigurable("Ghid
         super.apply()
         ApplicationManager.getApplication().runWriteAction {
             settings.syncGhidraLibrary(project)
-        }
-        if (GradleSettings.getInstance(project).linkedProjectsSettings.isNotEmpty()) {
-            writeGhidraPathToGradleProperties(settings.path)
+            if (GradleSettings.getInstance(project).linkedProjectsSettings.isNotEmpty()) {
+                writeGhidraPathToGradleProperties(settings.path)
+            }
         }
     }
 

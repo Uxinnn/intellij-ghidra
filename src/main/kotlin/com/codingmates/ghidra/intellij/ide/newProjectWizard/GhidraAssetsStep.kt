@@ -3,6 +3,7 @@ package com.codingmates.ghidra.intellij.ide.newProjectWizard
 import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.ide.projectWizard.generators.AssetsNewProjectWizardStep
 import com.intellij.ide.wizard.NewProjectWizardBaseData.Companion.baseData
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
@@ -16,7 +17,9 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
     }
 
     fun setupModuleAssets(project: Project) {
-        writeGhidraPathToGradleProperties(project, parent.path)
+        ApplicationManager.getApplication().executeOnPooledThread  {
+            writeGhidraPathToGradleProperties(project, parent.path)
+        }
 
         val name = baseData?.name
         // Have to use this to inject the default props to the templates since apparently `addTemplateAsset`
@@ -99,7 +102,7 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
         gradleProperties.outputStream().use { properties.store(it, null) }
 
         // Refresh so IntelliJ picks up the file change
-        VfsUtil.markDirtyAndRefresh(true, false, false,
+        VfsUtil.markDirtyAndRefresh(false, false, false,
             LocalFileSystem.getInstance().findFileByIoFile(gradleProperties))
     }
 }
