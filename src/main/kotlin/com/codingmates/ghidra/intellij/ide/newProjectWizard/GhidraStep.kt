@@ -5,58 +5,44 @@ import com.codingmates.ghidra.intellij.ide.model.isGhidraInstallationPath
 import com.codingmates.ghidra.intellij.ide.model.isGhidraSourcesPath
 import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfiguration
 import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfigurationType
+import com.codingmates.ghidra.intellij.ide.settings.GhidraSettings
 import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.ConfigurationTypeUtil
-import com.intellij.ide.projectWizard.projectWizardJdkComboBox
-import com.intellij.ide.wizard.AbstractNewProjectWizardStep
-import com.intellij.ide.wizard.NewProjectWizardStep
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
-import com.intellij.openapi.module.Module
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.ModuleRootModificationUtil
-import com.intellij.openapi.roots.OrderRootType
-import com.intellij.openapi.roots.ProjectRootManager
-import com.intellij.openapi.roots.libraries.Library
-import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar
-import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withPathToTextConvertor
-import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withTextToPathConvertor
-import com.intellij.openapi.ui.getCanonicalPath
-import com.intellij.openapi.ui.getPresentablePath
-import com.intellij.openapi.vfs.VfsUtil
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.ui.dsl.builder.AlignX
-import com.intellij.ui.dsl.builder.Panel
-import com.intellij.ui.dsl.builder.bindItem
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import kotlin.io.path.Path
 import com.intellij.ide.JavaUiBundle
 import com.intellij.ide.highlighter.ModuleFileType
 import com.intellij.ide.projectWizard.NewProjectWizardCollector.Base.logAddSampleCodeChanged
 import com.intellij.ide.projectWizard.NewProjectWizardCollector.Base.logAddSampleCodeFinished
-import com.intellij.ui.dsl.builder.whenItemSelectedFromUi
 import com.intellij.ide.projectWizard.NewProjectWizardCollector.BuildSystem.logSdkChanged
 import com.intellij.ide.projectWizard.NewProjectWizardCollector.BuildSystem.logSdkFinished
 import com.intellij.ide.projectWizard.ProjectWizardJdkIntent
 import com.intellij.ide.projectWizard.generators.JdkDownloadService
+import com.intellij.ide.projectWizard.projectWizardJdkComboBox
 import com.intellij.ide.util.projectWizard.JavaModuleBuilder
+import com.intellij.ide.wizard.AbstractNewProjectWizardStep
+import com.intellij.ide.wizard.NewProjectWizardStep
 import com.intellij.ide.wizard.setupProjectFromBuilder
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.module.Module
 import com.intellij.openapi.observable.util.toUiPathProperty
 import com.intellij.openapi.observable.util.transform
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.impl.jdkDownloader.JdkDownloadTask
+import com.intellij.openapi.roots.ModuleRootModificationUtil
+import com.intellij.openapi.roots.ProjectRootManager
+import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withPathToTextConvertor
+import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withTextToPathConvertor
 import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.openapi.util.io.FileUtil
-import com.intellij.ui.dsl.builder.BottomGap
+import com.intellij.openapi.ui.getCanonicalPath
+import com.intellij.openapi.ui.getPresentablePath
 import com.intellij.openapi.util.Pair
+import com.intellij.openapi.util.io.FileUtil
 import com.intellij.ui.UIBundle
-import com.intellij.ui.dsl.builder.bindSelected
-import com.intellij.ui.dsl.builder.bindText
-import com.intellij.ui.dsl.builder.whenStateChangedFromUi
+import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.layout.ValidationInfoBuilder
+import java.nio.file.Paths
+import kotlin.io.path.Path
 
 
 class GhidraStep(parent: NewProjectWizardStep) :
@@ -125,16 +111,18 @@ class GhidraStep(parent: NewProjectWizardStep) :
 
     override fun setupProject(project: Project) {
         super.setupProject(project)
-        resolve()
+        val ghidraSettings = requireNotNull(GhidraSettings.getInstance(project))
+        ghidraSettings.path = path
         GhidraNewProjectWizardState.lastPath = path
 
-        // Set up Module
+        // Set up Intellij Module. This will be overwritten by Gradle if a Ghidra Module project is being created.
+        // Still left it here since it also handles the downloading of JDK.
         val builder = JavaModuleBuilder()
         configureModuleBuilder(project, builder)
         val module = setupProjectFromBuilder(project, builder)
         module?.let(::startJdkDownloadIfNeeded)
         ApplicationManager.getApplication().runWriteAction {
-            val ghidraLib = createGhidraLibrary(project)
+            val ghidraLib = ghidraSettings.syncGhidraLibrary(project)
             module?.let { ModuleRootModificationUtil.addDependency(it, ghidraLib) }
         }
         createRunConfigInstance(project)
@@ -180,68 +168,10 @@ class GhidraStep(parent: NewProjectWizardStep) :
         )
         val configuration = settings.configuration as GhidraLauncherConfiguration
         configuration.apply {
-            setGhidraPath(path)
             alternativeJrePath = ProjectRootManager.getInstance(project).projectSdk?.homePath
         }
         runManager.addConfiguration(settings)
         runManager.selectedConfiguration = settings
-    }
-
-    private fun createGhidraLibrary(
-        project: Project
-    ): Library {
-        val classRoots: List<VirtualFile> = getClassRoots()
-        val sourceRoots: List<VirtualFile> = getSourceRoots()
-        val registrar = LibraryTablesRegistrar.getInstance()
-        val projectLibTable = registrar.getLibraryTable(project)
-        val libModel = projectLibTable.modifiableModel
-        val ghidraLib = projectLibTable.getLibraryByName("Ghidra")
-            ?: libModel.createLibrary("Ghidra")
-        libModel.commit()
-
-
-        ghidraLib.modifiableModel.apply {
-            listOf(OrderRootType.CLASSES, OrderRootType.SOURCES).forEach { rootType ->
-                getUrls(rootType).forEach { removeRoot(it, rootType) }
-            }
-
-            classRoots.forEach { addRoot(it, OrderRootType.CLASSES) }
-            sourceRoots.forEach { addRoot(it, OrderRootType.SOURCES) }
-        }.commit()
-        return ghidraLib
-    }
-
-    private fun getSourceRoots(): List<VirtualFile> {
-        val vfs = VirtualFileManager.getInstance()
-        fun Path.toVfs(): VirtualFile? =
-            vfs.refreshAndFindFileByUrl(VfsUtil.getUrlForLibraryRoot(this))
-
-
-        val sourceRoots: List<VirtualFile> =
-            ghidraModules.asSequence()
-                .map { (moduleName, moduleRootStr) -> Paths.get(moduleRootStr, "lib", "${moduleName}-src.zip") }
-                .mapNotNull(Path::toVfs)
-                .toList()
-        return sourceRoots
-    }
-
-    private fun getClassRoots(): List<VirtualFile> {
-        val vfs = VirtualFileManager.getInstance()
-        fun Path.toVfs(): VirtualFile? =
-            vfs.refreshAndFindFileByUrl(VfsUtil.getUrlForLibraryRoot(this))
-
-        val classRoots: List<VirtualFile> = ghidraModules
-            .values
-            .map { Paths.get(it, "lib") }
-            .filter(Files::isDirectory)
-            .map(Files::list)
-            .flatMap { it.use { stream -> stream.toList() } }
-            .filter {
-                val fileName = it.fileName.toString()
-                fileName.endsWith(".jar", ignoreCase = true) && !fileName.endsWith("-src.zip", ignoreCase = true)
-            }
-            .mapNotNull(Path::toVfs)
-        return classRoots
     }
 
     private fun ValidationInfoBuilder.validateGhidraPath(): ValidationInfo? {

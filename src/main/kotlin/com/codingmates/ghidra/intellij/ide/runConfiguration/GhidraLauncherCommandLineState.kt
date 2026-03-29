@@ -1,5 +1,6 @@
 package com.codingmates.ghidra.intellij.ide.runConfiguration
 
+import com.codingmates.ghidra.intellij.ide.settings.GhidraSettings
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.application.BaseJavaApplicationCommandLineState
 import com.intellij.execution.configurations.JavaParameters
@@ -43,7 +44,7 @@ class GhidraLauncherCommandLineState(
             jrePath
         )
 
-        val ghidraHome = Path(configuration.getGhidraPath())
+        val ghidraHome = Path(requireNotNull(GhidraSettings.getInstance(project).state).path)
         javaParameters.classPath.add(ghidraHome.resolve("Ghidra/Framework/Utility/lib/Utility.jar").toFile())
         val regex = Regex("log4j-.*\\.jar$")
         val s = ghidraHome.resolve("Ghidra/Framework/Generic/lib").listDirectoryEntries()

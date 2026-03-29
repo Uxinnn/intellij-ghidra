@@ -17,8 +17,6 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.XmlSerializerUtil
 import org.jdom.Element
-import java.nio.file.Path
-import kotlin.io.path.Path
 
 
 class GhidraLauncherConfiguration(
@@ -146,20 +144,12 @@ class GhidraLauncherConfiguration(
         state.isHeadless = check
     }
 
-    fun setGhidraPath(path: String) {
-        state.ghidraPath = path
-    }
-
     fun getArgs(): String? {
         return state.args
     }
 
     fun getHeadless(): Boolean {
         return state.isHeadless
-    }
-
-    fun getGhidraPath(): String {
-        return state.ghidraPath
     }
 
     override fun setEnvs(envs: Map<String, String>) {
@@ -210,6 +200,5 @@ class GhidraLauncherConfiguration(
         var args: String? = "",
         var isHeadless: Boolean = false,
         var workingDirectory: String? = null,
-        var ghidraPath: String = ""
     )
 }
