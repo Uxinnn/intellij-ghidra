@@ -4,6 +4,10 @@ import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.ide.projectWizard.generators.AssetsNewProjectWizardStep
 import com.intellij.ide.wizard.NewProjectWizardBaseData.Companion.baseData
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
+import java.io.File
+import java.util.*
 
 
 class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(parent) {
@@ -12,6 +16,8 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
     }
 
     fun setupModuleAssets(project: Project) {
+        writeGhidraPathToGradleProperties(project, parent.path)
+
         val name = baseData?.name
         // Have to use this to inject the default props to the templates since apparently `addTemplateAsset`
         // doesn't do it.
@@ -29,7 +35,12 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
         addEmptyDirectoryAsset("src/main/resources")
 
         // Create compulsory files
-        addTemplateAsset("build.gradle", "build.gradle", emptyMap())
+        addTemplateAsset("build.gradle", "build.gradle", buildMap {
+            put("GHIDRA_INSTALL_DIR", parent.path)
+        })
+        addTemplateAsset("gradle.properties", "gradle.properties", buildMap {
+            put("GHIDRA_INSTALL_DIR", parent.path)
+        })
         addTemplateAsset("extension.properties", "extension.properties", emptyMap())
         addTemplateAsset("Module.manifest", "Module.manifest", emptyMap())
         addTemplateAsset("README.md", "README.md", emptyMap())
@@ -73,5 +84,22 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
             addTemplateAsset("sample_script.py", "sample_script.py", emptyMap())
             addTemplateAsset("SampleScript.java", "SampleScript.java", emptyMap())
         }
+    }
+
+    private fun writeGhidraPathToGradleProperties(project: Project, path: String) {
+        val gradleProperties = File(project.basePath, "gradle.properties")
+        val properties = Properties()
+
+        // Load existing properties first to not overwrite other settings
+        if (gradleProperties.exists()) {
+            gradleProperties.inputStream().use { properties.load(it) }
+        }
+
+        properties.setProperty("GHIDRA_INSTALL_DIR", path)
+        gradleProperties.outputStream().use { properties.store(it, null) }
+
+        // Refresh so IntelliJ picks up the file change
+        VfsUtil.markDirtyAndRefresh(true, false, false,
+            LocalFileSystem.getInstance().findFileByIoFile(gradleProperties))
     }
 }

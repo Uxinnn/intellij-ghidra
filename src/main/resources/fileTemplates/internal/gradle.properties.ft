@@ -1,0 +1,3 @@
+# If you are using the Intellij Ghidra plugin, DO NOT CHANGE THIS MANUALLY!
+# Change it via the settings instead (File > Settings > Tools > Ghidra Settings).
+GHIDRA_INSTALL_DIR=${GHIDRA_INSTALL_DIR}
