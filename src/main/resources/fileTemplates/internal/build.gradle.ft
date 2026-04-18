@@ -65,6 +65,10 @@ dependencies {
 // Exclude additional files from the built extension
 // Ex: buildExtension.exclude '.idea/**'
 
+buildExtension.exclude '.idea/**'
+buildExtension.exclude 'gradle/**'
+buildExtension.exclude 'gradle.properties'
+
 sourceSets {
     main {
         java.srcDirs = ['src/main/java']
