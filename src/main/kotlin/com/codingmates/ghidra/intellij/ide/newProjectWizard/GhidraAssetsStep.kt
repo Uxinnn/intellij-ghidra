@@ -7,6 +7,8 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
+import org.jetbrains.plugins.gradle.service.project.open.canLinkAndRefreshGradleProject
+import org.jetbrains.plugins.gradle.service.project.open.linkAndRefreshGradleProject
 import java.io.File
 import java.util.*
 
@@ -79,6 +81,11 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
             addTemplateAsset("src/main/java/$name/${name}Loader.java", "nameLoader.java", props)
             addTemplateAsset("src/main/java/$name/${name}Plugin.java", "namePlugin.java", props)
         }
+
+        // Load build.gradle
+        val basePath = project.basePath ?: return
+        if (!canLinkAndRefreshGradleProject(basePath, project)) return
+        linkAndRefreshGradleProject(basePath, project)
     }
 
     fun setupScriptAssets() {
