@@ -28,6 +28,9 @@
 // Gradle should be invoked from the directory of the project to build.  Please see the
 // application.gradle.version property in <GHIDRA_INSTALL_DIR>/Ghidra/application.properties
 // for the correction version of Gradle to use for the Ghidra installation you specify.
+plugins {
+    id 'idea'
+}
 
 //----------------------START "DO NOT MODIFY" SECTION------------------------------
 def ghidraInstallDir
@@ -66,25 +69,12 @@ dependencies {
 // Ex: buildExtension.exclude '.idea/**'
 
 buildExtension.exclude '.idea/**'
+buildExtension.exclude '**/*.iml'
 buildExtension.exclude 'gradle/**'
 buildExtension.exclude 'gradle.properties'
 
-sourceSets {
-    main {
-        java.srcDirs = ['src/main/java']
+idea {
+    module {
+        sourceDirs += file('ghidra_scripts')
     }
-    ghidra_scripts {
-        java {
-            srcDir 'ghidra_scripts'
-        }
-        // This links the scripts to your main compiled classes and dependencies
-        compileClasspath += sourceSets.main.output
-        runtimeClasspath += sourceSets.main.output
-    }
-}
-
-configurations {
-    // 1. Make the ghidra_scripts implementation extend from main's implementation
-    ghidra_scriptsImplementation.extendsFrom implementation
-    ghidra_scriptsRuntimeOnly.extendsFrom runtimeOnly
 }
