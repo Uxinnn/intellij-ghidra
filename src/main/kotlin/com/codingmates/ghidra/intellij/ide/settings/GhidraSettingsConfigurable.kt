@@ -7,10 +7,14 @@ import com.intellij.lang.properties.psi.PropertiesFile
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
+import com.intellij.openapi.roots.LibraryOrderEntry
+import com.intellij.openapi.roots.ModuleRootManager
+import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withPathToTextConvertor
 import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withTextToPathConvertor
 import com.intellij.openapi.ui.DialogPanel
@@ -33,9 +37,20 @@ class GhidraSettingsConfigurable(var project: Project) : BoundConfigurable("Ghid
         validateGhidraPath(pathField.component.text)
         super.apply()
         ApplicationManager.getApplication().runWriteAction {
-            settings.syncGhidraLibrary(project)
+            val ghidraLib = settings.syncGhidraLibrary(project)
             if (GradleSettings.getInstance(project).linkedProjectsSettings.isNotEmpty()) {
                 writeGhidraPathToGradleProperties(settings.path)
+            } else {
+                val module = ModuleManager.getInstance(project).findModuleByName(project.name)
+                module?.let {
+                    val hasGhidraLib = ModuleRootManager.getInstance(module)
+                        .orderEntries
+                        .filterIsInstance<LibraryOrderEntry>()
+                        .any { entry -> entry == ghidraLib }
+                    if (!hasGhidraLib) {
+                        ModuleRootModificationUtil.addDependency(it, ghidraLib)
+                    }
+                }
             }
         }
     }
