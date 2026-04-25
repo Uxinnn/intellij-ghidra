@@ -1,14 +1,9 @@
 package com.codingmates.ghidra.intellij.ide.facet
 
 import com.codingmates.ghidra.intellij.ide.GhidraBundle
-import com.codingmates.ghidra.intellij.ide.model.isGhidraInstallationPath
-import com.codingmates.ghidra.intellij.ide.model.isGhidraSourcesPath
-import com.intellij.facet.ui.FacetEditorContext
-import com.intellij.facet.ui.FacetEditorTab
-import com.intellij.facet.ui.FacetEditorValidator
-import com.intellij.facet.ui.FacetValidatorsManager
-import com.intellij.facet.ui.SlowFacetEditorValidator
-import com.intellij.facet.ui.ValidationResult
+import com.codingmates.ghidra.intellij.ide.model.GhidraPathValidationException
+import com.codingmates.ghidra.intellij.ide.model.validateGhidraPath
+import com.intellij.facet.ui.*
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.observable.properties.PropertyGraph
@@ -29,10 +24,10 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
+import org.jetbrains.annotations.Nls
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import org.jetbrains.annotations.Nls
 
 class GhidraFacetConfigurationEditor(
     private val state: GhidraFacetSettings,
@@ -88,15 +83,11 @@ class GhidraFacetConfigurationEditor(
     inner class GhidraInstallationValidator : FacetEditorValidator(), SlowFacetEditorValidator {
         override fun check(): ValidationResult {
             val ghidraInstallation = installationDir.get()
-
-            if (!isGhidraInstallationPath(ghidraInstallation)) {
-                return ValidationResult(GhidraBundle.message("ghidra.facet.editor.installation.error.no-properties"))
+            try {
+                validateGhidraPath(ghidraInstallation)
+            } catch (e: GhidraPathValidationException) {
+                return ValidationResult(e.message)
             }
-
-            if (isGhidraSourcesPath(ghidraInstallation)) {
-                return ValidationResult(GhidraBundle.message("ghidra.facet.editor.installation.error.sources"))
-            }
-
             return ValidationResult.OK
         }
     }

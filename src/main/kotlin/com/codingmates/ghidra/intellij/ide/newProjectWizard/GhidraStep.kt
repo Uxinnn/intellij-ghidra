@@ -1,13 +1,7 @@
 package com.codingmates.ghidra.intellij.ide.newProjectWizard
 
 import com.codingmates.ghidra.intellij.ide.GhidraBundle
-import com.codingmates.ghidra.intellij.ide.model.isGhidraInstallationPath
-import com.codingmates.ghidra.intellij.ide.model.isGhidraSourcesPath
-import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfiguration
-import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfigurationType
-import com.codingmates.ghidra.intellij.ide.settings.GhidraSettings
-import com.intellij.execution.RunManager
-import com.intellij.execution.configurations.ConfigurationTypeUtil
+import com.codingmates.ghidra.intellij.ide.model.GhidraPathValidationException
 import com.intellij.ide.JavaUiBundle
 import com.intellij.ide.highlighter.ModuleFileType
 import com.intellij.ide.projectWizard.NewProjectWizardCollector.Base.logAddSampleCodeChanged
@@ -21,7 +15,6 @@ import com.intellij.ide.util.projectWizard.JavaModuleBuilder
 import com.intellij.ide.wizard.AbstractNewProjectWizardStep
 import com.intellij.ide.wizard.NewProjectWizardStep
 import com.intellij.ide.wizard.setupProjectFromBuilder
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.module.Module
@@ -29,7 +22,6 @@ import com.intellij.openapi.observable.util.toUiPathProperty
 import com.intellij.openapi.observable.util.transform
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.projectRoots.impl.jdkDownloader.JdkDownloadTask
-import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withPathToTextConvertor
 import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withTextToPathConvertor
@@ -110,9 +102,7 @@ class GhidraStep(parent: NewProjectWizardStep) :
     }
 
     override fun setupProject(project: Project) {
-        super.setupProject(project)
-        val ghidraSettings = requireNotNull(GhidraSettings.getInstance(project))
-        ghidraSettings.path = path
+//        super.setupProject(project)
         GhidraNewProjectWizardState.lastPath = path
 
         // Set up Intellij Module. This will be overwritten by Gradle if a Ghidra Module project is being created.
@@ -121,21 +111,17 @@ class GhidraStep(parent: NewProjectWizardStep) :
         configureModuleBuilder(project, builder)
         val module = setupProjectFromBuilder(project, builder)
         module?.let(::startJdkDownloadIfNeeded)
-        ApplicationManager.getApplication().runWriteAction {
-            val ghidraLib = ghidraSettings.syncGhidraLibrary(project)
-            module?.let { ModuleRootModificationUtil.addDependency(it, ghidraLib) }
-        }
-        createRunConfigInstance(project)
     }
 
     private fun configureModuleBuilder(project: Project, builder: JavaModuleBuilder) {
         val basePath = Path(project.basePath ?: error(GhidraBundle.message("ghidra.wizard.path.error")))
         val moduleFileLocation = basePath.toString()
         val moduleName = project.name
-        val moduleFile = Paths.get(moduleFileLocation, moduleName + ModuleFileType.DOT_DEFAULT_EXTENSION)
+        val moduleFile = Paths.get(moduleFileLocation, ".idea", "modules", moduleName + ModuleFileType.DOT_DEFAULT_EXTENSION)
 
         builder.name = moduleName
         builder.moduleFilePath = FileUtil.toSystemDependentName(moduleFile.toString())
+        builder.contentEntryPath = FileUtil.toSystemDependentName(basePath.toString())
         builder.addSourcePath(Pair.create(FileUtil.toSystemDependentName(moduleFileLocation), ""))
 
         if (!context.isCreatingNewProject) {
@@ -153,33 +139,11 @@ class GhidraStep(parent: NewProjectWizardStep) :
         }
     }
 
-    private fun createRunConfigInstance(project: Project) {
-        // Create run configuration entry for the project
-        val runManager = RunManager.getInstance(project)
-
-        val factory = ConfigurationTypeUtil
-            .findConfigurationType(GhidraLauncherConfigurationType::class.java)
-            .configurationFactories
-            .firstOrNull()
-            ?: error(GhidraBundle.message("ghidra.wizard.runconfig.type.error"))
-        val settings = runManager.createConfiguration(
-            "Ghidra",
-            factory,
-        )
-        val configuration = settings.configuration as GhidraLauncherConfiguration
-        configuration.apply {
-            alternativeJrePath = ProjectRootManager.getInstance(project).projectSdk?.homePath
-        }
-        runManager.addConfiguration(settings)
-        runManager.selectedConfiguration = settings
-    }
-
     private fun ValidationInfoBuilder.validateGhidraPath(): ValidationInfo? {
-        if (!isGhidraInstallationPath(path)) {
-            return error(GhidraBundle.message("ghidra.facet.editor.installation.error.no-properties"))
-        }
-        if (isGhidraSourcesPath(path)) {
-            return error(GhidraBundle.message("ghidra.facet.editor.installation.error.sources"))
+        try {
+            com.codingmates.ghidra.intellij.ide.model.validateGhidraPath(path)
+        } catch (e: GhidraPathValidationException) {
+            return error(e.message ?: "")
         }
         return null
     }

@@ -1,5 +1,8 @@
 package com.codingmates.ghidra.intellij.ide.runConfiguration
 
+import com.codingmates.ghidra.intellij.ide.GhidraBundle
+import com.codingmates.ghidra.intellij.ide.model.GhidraPathValidationException
+import com.codingmates.ghidra.intellij.ide.model.validateGhidraPath
 import com.codingmates.ghidra.intellij.ide.settings.GhidraSettings
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.application.BaseJavaApplicationCommandLineState
@@ -44,26 +47,18 @@ class GhidraLauncherCommandLineState(
             jrePath
         )
 
-        val ghidraHome = Path(requireNotNull(GhidraSettings.getInstance(project).state).path)
+        try {
+            validateGhidraPath(GhidraSettings.getInstance(project).path)
+        } catch (e: GhidraPathValidationException) {
+            throw ExecutionException(e.message)
+        }
+        val ghidraHome = Path(GhidraSettings.getInstance(project).path)
         javaParameters.classPath.add(ghidraHome.resolve("Ghidra/Framework/Utility/lib/Utility.jar").toFile())
-        val regex = Regex("log4j-.*\\.jar$")
+        val regex = Regex(GhidraBundle.message("ghidra.regex.log4j"))
         val s = ghidraHome.resolve("Ghidra/Framework/Generic/lib").listDirectoryEntries()
             .filter { path -> path.isRegularFile() && regex.matches(path.fileName.toString()) }
         s.forEach { path -> javaParameters.classPath.add(path.toAbsolutePath().toString()) }
         setupJavaParameters(javaParameters)
-        val cp = javaParameters.classPath.pathList
-        val hasUtility = cp.any { Path(it).endsWith("Framework/Utility/lib/Utility.jar") }
-        if (!hasUtility) {
-            throw ExecutionException(
-                "Utility.jar not found in Ghidra classpath."
-            )
-        }
-        val hasLog4j = cp.any { Path(it).toString().contains("log4j", ignoreCase = true) }
-        if (!hasLog4j) {
-            throw ExecutionException(
-                "Log4j not found in Ghidra classpath."
-            )
-        }
         return javaParameters
     }
 

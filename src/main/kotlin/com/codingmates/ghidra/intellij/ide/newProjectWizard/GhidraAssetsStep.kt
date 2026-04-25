@@ -1,16 +1,22 @@
 package com.codingmates.ghidra.intellij.ide.newProjectWizard
 
+import com.codingmates.ghidra.intellij.ide.GhidraBundle
+import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfiguration
+import com.codingmates.ghidra.intellij.ide.runConfiguration.GhidraLauncherConfigurationType
+import com.codingmates.ghidra.intellij.ide.settings.GhidraSettings
+import com.intellij.execution.RunManager
+import com.intellij.execution.configurations.ConfigurationTypeUtil
 import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.ide.projectWizard.generators.AssetsNewProjectWizardStep
 import com.intellij.ide.wizard.NewProjectWizardBaseData.Companion.baseData
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.WriteAction
+import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.LocalFileSystem
-import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.openapi.roots.ModuleRootModificationUtil
+import com.intellij.openapi.roots.ProjectRootManager
 import org.jetbrains.plugins.gradle.service.project.open.canLinkAndRefreshGradleProject
 import org.jetbrains.plugins.gradle.service.project.open.linkAndRefreshGradleProject
-import java.io.File
-import java.util.*
 
 
 class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(parent) {
@@ -18,11 +24,46 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
         if (parent.type == GhidraProjectType.Module) setupModuleAssets(project) else setupScriptAssets()
     }
 
-    fun setupModuleAssets(project: Project) {
-        ApplicationManager.getApplication().executeOnPooledThread  {
-            writeGhidraPathToGradleProperties(project, parent.path)
+    override fun setupProject(project: Project) {
+        super.setupProject(project)
+        val ghidraSettings = requireNotNull(GhidraSettings.getInstance(project))
+        val module = ModuleManager.getInstance(project).findModuleByName(project.name)
+        ApplicationManager.getApplication().invokeLater {
+            WriteAction.runAndWait<Throwable> {
+                ghidraSettings.type = parent.type
+                if (parent.type == GhidraProjectType.Script) {
+                    ghidraSettings.path = parent.path  // This is not ran if project is a Module since it's set in
+                                                       // gradle.properties in the setupModuleAssets method.
+                    val ghidraLib = ghidraSettings.syncGhidraLibrary()
+                    module?.let { ModuleRootModificationUtil.addDependency(it, ghidraLib) }
+                }
+            }
         }
+        createRunConfigInstance(project)
+    }
 
+    private fun createRunConfigInstance(project: Project) {
+        // Create run configuration entry for the project
+        val runManager = RunManager.getInstance(project)
+
+        val factory = ConfigurationTypeUtil
+            .findConfigurationType(GhidraLauncherConfigurationType::class.java)
+            .configurationFactories
+            .firstOrNull()
+            ?: error(GhidraBundle.message("ghidra.wizard.runconfig.type.error"))
+        val settings = runManager.createConfiguration(
+            "Ghidra",
+            factory,
+        )
+        val configuration = settings.configuration as GhidraLauncherConfiguration
+        configuration.apply {
+            alternativeJrePath = ProjectRootManager.getInstance(project).projectSdk?.homePath
+        }
+        runManager.addConfiguration(settings)
+        runManager.selectedConfiguration = settings
+    }
+
+    fun setupModuleAssets(project: Project) {
         val name = baseData?.name
         // Have to use this to inject the default props to the templates since apparently `addTemplateAsset`
         // doesn't do it.
@@ -84,8 +125,10 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
 
         // Load build.gradle
         val basePath = project.basePath ?: return
-        if (!canLinkAndRefreshGradleProject(basePath, project)) return
-        linkAndRefreshGradleProject(basePath, project)
+        ApplicationManager.getApplication().invokeLater {
+            if (!canLinkAndRefreshGradleProject(basePath, project)) return@invokeLater
+            linkAndRefreshGradleProject(basePath, project)
+        }
     }
 
     fun setupScriptAssets() {
@@ -94,22 +137,5 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
             addTemplateAsset("sample_script.py", "sample_script.py", emptyMap())
             addTemplateAsset("SampleScript.java", "SampleScript.java", emptyMap())
         }
-    }
-
-    private fun writeGhidraPathToGradleProperties(project: Project, path: String) {
-        val gradleProperties = File(project.basePath, "gradle.properties")
-        val properties = Properties()
-
-        // Load existing properties first to not overwrite other settings
-        if (gradleProperties.exists()) {
-            gradleProperties.inputStream().use { properties.load(it) }
-        }
-
-        properties.setProperty("GHIDRA_INSTALL_DIR", path)
-        gradleProperties.outputStream().use { properties.store(it, null) }
-
-        // Refresh so IntelliJ picks up the file change
-        VfsUtil.markDirtyAndRefresh(false, false, false,
-            LocalFileSystem.getInstance().findFileByIoFile(gradleProperties))
     }
 }

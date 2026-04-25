@@ -2,11 +2,15 @@ package com.codingmates.ghidra.intellij.ide.settings
 
 import com.codingmates.ghidra.intellij.ide.model.createApplicationLayoutProxy
 import com.codingmates.ghidra.intellij.ide.model.resolveGhidraModuleJar
+import com.codingmates.ghidra.intellij.ide.newProjectWizard.GhidraProjectType
+import com.intellij.lang.properties.psi.PropertiesFile
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.roots.OrderRootType
 import com.intellij.openapi.roots.libraries.Library
 import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar
@@ -14,8 +18,8 @@ import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.psi.PsiManager
 import com.intellij.util.lang.UrlClassLoader
-import com.intellij.util.xmlb.XmlSerializerUtil
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -28,23 +32,45 @@ import kotlin.io.path.Path
     name = "com.codingmates.ghidra.intellij.ide.settings.GhidraSettings",
     storages = [Storage("GhidraSettings.xml")]
 )
-class GhidraSettings: PersistentStateComponent<GhidraSettings> {
-    var path: String = ""
-        set(value) { field = FileUtil.toSystemIndependentName(value) }
+class GhidraSettings(private val project: Project): PersistentStateComponent<GhidraSettings.State> {
+    data class State(
+        var type: GhidraProjectType? = null,
+        var path: String = ""
+    )
+
+    private var state = State()
+
+    var type: GhidraProjectType?
+        get() = state.type
+        set(value) { state.type = value }
+    var path: String
+        get() = if (type == GhidraProjectType.Module) {
+            readGhidraPathFromGradleProperties()
+        } else {
+            state.path
+        }
+        set(value) {
+            val newPath = FileUtil.toSystemIndependentName(value)
+            if (type == GhidraProjectType.Module) {
+                writeGhidraPathToGradleProperties(newPath)
+            } else {
+                state.path = newPath
+            }
+        }
 
     companion object {
         fun getInstance(project: Project): GhidraSettings =
             project.getService(GhidraSettings::class.java)
     }
 
-    override fun getState(): GhidraSettings = this
+    override fun getState(): GhidraSettings.State = state
 
-    override fun loadState(newState: GhidraSettings) {
-        XmlSerializerUtil.copyBean(newState, this)
+    override fun loadState(newState: GhidraSettings.State) {
+        state = newState
     }
 
-    fun syncGhidraLibrary(project: Project): Library {
-        val library = getGhidraLibrary(project)
+    fun syncGhidraLibrary(): Library {
+        val library = getGhidraLibrary()
         updateGhidraLibrary(library)
         return library
     }
@@ -52,14 +78,12 @@ class GhidraSettings: PersistentStateComponent<GhidraSettings> {
     /**
      * Gets the Ghidra library. Creates it if it does not exist.
      */
-    fun getGhidraLibrary(
-        project: Project
-    ): Library {
+    fun getGhidraLibrary(): Library {
         val registrar = LibraryTablesRegistrar.getInstance()
         val projectLibTable = registrar.getLibraryTable(project)
+        projectLibTable.getLibraryByName("Ghidra")?.let { return it }
         val libModel = projectLibTable.modifiableModel
-        val library = projectLibTable.getLibraryByName("Ghidra")
-            ?: libModel.createLibrary("Ghidra")
+        val library = libModel.createLibrary("Ghidra")
         libModel.commit()
         return library
     }
@@ -117,5 +141,34 @@ class GhidraSettings: PersistentStateComponent<GhidraSettings> {
         val layout = createApplicationLayoutProxy(utilsClassLoader, File(path))
         val ghidraModules = layout.modules.mapValues { it.value.moduleRoot.canonicalPath }
         return ghidraModules
+    }
+
+    private fun writeGhidraPathToGradleProperties(path: String) {
+        val gradlePropertiesFile = project.guessProjectDir()
+            ?.findOrCreateChildData(this, "gradle.properties") ?: return
+
+        val psiFile = PsiManager.getInstance(project)
+            .findFile(gradlePropertiesFile) as? PropertiesFile ?: return
+
+        val existingProperty = psiFile.findPropertyByKey("GHIDRA_INSTALL_DIR")
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            if (existingProperty != null) {
+                existingProperty.setValue(path)
+            } else {
+                psiFile.addProperty("GHIDRA_INSTALL_DIR", path)
+            }
+        }
+    }
+
+    private fun readGhidraPathFromGradleProperties(): String {
+        val gradlePropertiesFile = project.guessProjectDir()
+            ?.findOrCreateChildData(this, "gradle.properties") ?: return ""
+
+        val psiFile = PsiManager.getInstance(project)
+            .findFile(gradlePropertiesFile) as? PropertiesFile ?: return ""
+
+        val existingProperty = psiFile.findPropertyByKey("GHIDRA_INSTALL_DIR")
+        return existingProperty?.value ?:  ""
     }
 }

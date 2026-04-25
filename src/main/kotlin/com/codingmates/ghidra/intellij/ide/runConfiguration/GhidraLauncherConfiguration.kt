@@ -1,6 +1,9 @@
 package com.codingmates.ghidra.intellij.ide.runConfiguration
 
 import com.codingmates.ghidra.intellij.ide.facet.GhidraFacet
+import com.codingmates.ghidra.intellij.ide.model.GhidraPathValidationException
+import com.codingmates.ghidra.intellij.ide.model.validateGhidraPath
+import com.codingmates.ghidra.intellij.ide.settings.GhidraSettings
 import com.intellij.diagnostic.logging.LogConfigurationPanel
 import com.intellij.execution.*
 import com.intellij.execution.configuration.EnvironmentVariablesComponent
@@ -42,6 +45,11 @@ class GhidraLauncherConfiguration(
         JavaParametersUtil.checkAlternativeJRE(this)
         ProgramParametersUtil.checkWorkingDirectoryExist(this, project, null)
         JavaRunConfigurationExtensionManager.checkConfigurationIsValid(this)
+        try {
+            validateGhidraPath(GhidraSettings.getInstance(project).path)
+        } catch (e: GhidraPathValidationException) {
+            throw RuntimeConfigurationError(e.message)
+        }
     }
 
     override fun clone(): RunConfiguration {
