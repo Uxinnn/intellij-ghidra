@@ -52,7 +52,7 @@ class GhidraSettingsConfigurable(var project: Project) : BoundConfigurable("Ghid
     }
 
     override fun createPanel(): DialogPanel = panel {
-        val isGradleManaged = settings.state.type == GhidraProjectType.Module
+        val isGradleManaged = settings.type == GhidraProjectType.Module
         row(GhidraBundle.message("ghidra.editor.path.label")) {
             val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
                 .withTitle(GhidraBundle.message("ghidra.editor.path.title"))

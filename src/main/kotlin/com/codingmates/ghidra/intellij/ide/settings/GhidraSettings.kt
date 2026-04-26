@@ -21,6 +21,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiManager
 import com.intellij.util.lang.UrlClassLoader
+import org.jetbrains.plugins.gradle.settings.GradleSettings
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -42,7 +43,12 @@ class GhidraSettings(private val project: Project): PersistentStateComponent<Ghi
     private var state = State()
 
     var type: GhidraProjectType?
-        get() = state.type
+        get() {
+            if (state.type == null) {
+                state.type = guessGhidraProjectType()
+            }
+            return state.type
+        }
         set(value) { state.type = value }
     var path: String
         get() = if (type == GhidraProjectType.Module) {
@@ -144,6 +150,11 @@ class GhidraSettings(private val project: Project): PersistentStateComponent<Ghi
         return ghidraModules
     }
 
+    private fun guessGhidraProjectType(): GhidraProjectType {
+        val isGradleProject = GradleSettings.getInstance(project).linkedProjectsSettings.isNotEmpty()
+        return if (isGradleProject) GhidraProjectType.Module else GhidraProjectType.Script
+    }
+
     private fun writeGhidraPathToGradleProperties(path: String) {
         val gradlePropertiesFile = project.guessProjectDir()
             ?.findOrCreateChildData(this, "gradle.properties") ?: return
@@ -164,7 +175,7 @@ class GhidraSettings(private val project: Project): PersistentStateComponent<Ghi
 
     private fun readGhidraPathFromGradleProperties(): String {
         val gradlePropertiesFile = project.guessProjectDir()
-            ?.findOrCreateChildData(this, "gradle.properties") ?: return ""
+            ?.findChild("gradle.properties") ?: return ""
 
         val psiFile = PsiManager.getInstance(project)
             .findFile(gradlePropertiesFile) as? PropertiesFile ?: return ""
