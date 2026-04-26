@@ -43,7 +43,7 @@ class GhidraLauncherCommandLineState(
         JavaParametersUtil.configureProject(
             project,
             javaParameters,
-            JavaParameters.JDK_ONLY,
+            JavaParameters.JDK_AND_CLASSES,
             jrePath
         )
 
