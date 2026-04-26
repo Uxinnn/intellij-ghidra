@@ -50,7 +50,7 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
             .findConfigurationType(GhidraLauncherConfigurationType::class.java)
             .configurationFactories
             .firstOrNull()
-            ?: error(GhidraBundle.message("ghidra.wizard.runconfig.type.error"))
+            ?: error(GhidraBundle.message("ghidra.runconfig.type.error"))
         val settings = runManager.createConfiguration(
             "Ghidra",
             factory,
@@ -82,10 +82,10 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
 
         // Create compulsory files
         addTemplateAsset("build.gradle", "build.gradle", buildMap {
-            put("GHIDRA_INSTALL_DIR", parent.path)
+            put(GhidraBundle.message("ghidra.gradle.path.key"), parent.path)
         })
         addTemplateAsset("gradle.properties", "gradle.properties", buildMap {
-            put("GHIDRA_INSTALL_DIR", parent.path)
+            put(GhidraBundle.message("ghidra.gradle.path.key"), parent.path)
         })
         addTemplateAsset("extension.properties", "extension.properties", emptyMap())
         addTemplateAsset("Module.manifest", "Module.manifest", emptyMap())

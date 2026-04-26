@@ -46,26 +46,26 @@ data class GhidraProperties(
 fun validateGhidraPath(path: String) {
     val path = Paths.get(path)
     if (!path.resolve("Ghidra/application.properties").exists()) {
-        throw GhidraPathValidationException(GhidraBundle.message("ghidra.facet.editor.installation.error.no-properties"))
+        throw GhidraPathValidationException(GhidraBundle.message("ghidra.editor.path.error.no-properties"))
     }
     if (path.resolve("Ghidra/certification.local.manifest").exists()) {
-        throw GhidraPathValidationException(GhidraBundle.message("ghidra.facet.editor.installation.error.sources"))
+        throw GhidraPathValidationException(GhidraBundle.message("ghidra.editor.path.error.sources"))
     }
 
     if (!path.resolve("Ghidra/Framework/Utility/lib/Utility.jar").exists()) {
-        throw GhidraPathValidationException(GhidraBundle.message("ghidra.facet.editor.installation.error.utility"))
+        throw GhidraPathValidationException(GhidraBundle.message("ghidra.editor.path.error.utility"))
     }
 
     val genericLib = path.resolve("Ghidra/Framework/Generic/lib")
     if (!genericLib.isDirectory()) {
-        throw GhidraPathValidationException(GhidraBundle.message("ghidra.facet.editor.installation.error.generic-lib"))
+        throw GhidraPathValidationException(GhidraBundle.message("ghidra.editor.path.error.generic-lib"))
     }
 
     val log4jRegex = Regex(GhidraBundle.message("ghidra.regex.log4j"))
     val hasLog4j = genericLib.listDirectoryEntries()
         .any { it.isRegularFile() && log4jRegex.matches(it.fileName.toString()) }
     if (!hasLog4j) {
-        throw GhidraPathValidationException(GhidraBundle.message("ghidra.facet.editor.installation.error.log4j"))
+        throw GhidraPathValidationException(GhidraBundle.message("ghidra.editor.path.error.log4j"))
     }
 }
 

@@ -1,5 +1,6 @@
 package com.codingmates.ghidra.intellij.ide.runConfiguration
 
+import com.codingmates.ghidra.intellij.ide.GhidraBundle
 import com.codingmates.ghidra.intellij.ide.icons.GhidraIcons
 import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.execution.configurations.ConfigurationType
@@ -9,9 +10,9 @@ import com.intellij.openapi.project.Project
 
 
 class GhidraLauncherConfigurationType : ConfigurationTypeBase(
-    "GhidraLauncherConfiguration",
-    "Ghidra Launcher",
-    "Start the configured Ghidra installation with the project classpath.",
+    GhidraBundle.message("ghidra.run-configuration.type.id"),
+    GhidraBundle.message("ghidra.run-configuration.type.name"),
+    GhidraBundle.message("ghidra.run-configuration.type.description"),
     GhidraIcons.Ghidra
 ), ConfigurationType {
 

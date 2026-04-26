@@ -1,5 +1,6 @@
 package com.codingmates.ghidra.intellij.ide.newProjectWizard
 
+import com.codingmates.ghidra.intellij.ide.GhidraBundle
 import com.codingmates.ghidra.intellij.ide.icons.GhidraIcons
 import com.intellij.ide.util.projectWizard.WizardContext
 import com.intellij.ide.wizard.*
@@ -8,9 +9,9 @@ import javax.swing.Icon
 
 
 class GhidraNewProjectWizard : GeneratorNewProjectWizard {
-    override val id: String = "Ghidra"
+    override val id: String = GhidraBundle.message("ghidra.id")
 
-    override val name: String = "New Ghidra Module"
+    override val name: String = GhidraBundle.message("ghidra.name")
 
     override val icon: Icon = GhidraIcons.Ghidra
 

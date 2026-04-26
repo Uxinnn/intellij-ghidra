@@ -48,8 +48,8 @@ class GhidraFacetConfigurationEditor(
 
     override fun createComponent() = panel {
         group("Ghidra Settings") {
-            row(GhidraBundle.message("ghidra.facet.editor.installation")) {
-                val title = GhidraBundle.message("ghidra.facet.editor.installation.dialog.title")
+            row(GhidraBundle.message("ghidra.editor.path.label")) {
+                val title = GhidraBundle.message("ghidra.editor.path.title")
                 val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
                     .withPathToTextConvertor(::getPresentablePath)
                     .withTextToPathConvertor(::getCanonicalPath)
@@ -57,7 +57,7 @@ class GhidraFacetConfigurationEditor(
 
                 textFieldWithBrowseButton(fileChooserDescriptor, context.project)
                     .bindText(installationDir.toUiPathProperty())
-                    .applyToComponent { setEmptyState(GhidraBundle.message("ghidra.facet.editor.installation.empty")) }
+                    .applyToComponent { setEmptyState(GhidraBundle.message("ghidra.editor.path.default")) }
                     .align(AlignX.FILL)
             }
         }

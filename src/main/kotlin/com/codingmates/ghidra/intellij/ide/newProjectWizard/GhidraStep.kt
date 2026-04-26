@@ -70,9 +70,9 @@ class GhidraStep(parent: NewProjectWizardStep) :
     }
 
     fun setupGhidraSettingsUI(builder: Panel) {
-        builder.row(GhidraBundle.message("ghidra.facet.editor.installation")) {
+        builder.row(GhidraBundle.message("ghidra.editor.path.label")) {
             val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
-                .withTitle(GhidraBundle.message("ghidra.facet.editor.installation.dialog.title"))
+                .withTitle(GhidraBundle.message("ghidra.editor.path.title"))
                 .withPathToTextConvertor(::getPresentablePath)
                 .withTextToPathConvertor(::getCanonicalPath)
             textFieldWithBrowseButton(fileChooserDescriptor, context.project)
@@ -114,7 +114,7 @@ class GhidraStep(parent: NewProjectWizardStep) :
     }
 
     private fun configureModuleBuilder(project: Project, builder: JavaModuleBuilder) {
-        val basePath = Path(project.basePath ?: error(GhidraBundle.message("ghidra.wizard.path.error")))
+        val basePath = Path(project.basePath ?: error(GhidraBundle.message("ghidra.editor.project.path.not-found")))
         val moduleFileLocation = basePath.toString()
         val moduleName = project.name
         val moduleFile = Paths.get(moduleFileLocation, ".idea", "modules", moduleName + ModuleFileType.DOT_DEFAULT_EXTENSION)

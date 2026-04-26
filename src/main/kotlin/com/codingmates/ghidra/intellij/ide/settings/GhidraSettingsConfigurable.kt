@@ -53,9 +53,9 @@ class GhidraSettingsConfigurable(var project: Project) : BoundConfigurable("Ghid
 
     override fun createPanel(): DialogPanel = panel {
         val isGradleManaged = settings.state.type == GhidraProjectType.Module
-        row(GhidraBundle.message("ghidra.facet.editor.installation")) {
+        row(GhidraBundle.message("ghidra.editor.path.label")) {
             val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
-                .withTitle(GhidraBundle.message("ghidra.facet.editor.installation.dialog.title"))
+                .withTitle(GhidraBundle.message("ghidra.editor.path.title"))
                 .withPathToTextConvertor(::getPresentablePath)
                 .withTextToPathConvertor(::getCanonicalPath)
             pathField = textFieldWithBrowseButton(fileChooserDescriptor, project)
@@ -64,8 +64,8 @@ class GhidraSettingsConfigurable(var project: Project) : BoundConfigurable("Ghid
         }.enabled(!isGradleManaged)
         if (isGradleManaged) {
             row {
-                label("This is a Ghidra module project. Installation path is managed by Gradle.")
-                    .comment("Configure the Ghidra installation path in your gradle.properties or build.gradle file.")
+                label(GhidraBundle.message("ghidra.settings.panel.gradle-managed.error.label"))
+                    .comment(GhidraBundle.message("ghidra.settings.panel.gradle-managed.error.comment"))
             }
         }
     }

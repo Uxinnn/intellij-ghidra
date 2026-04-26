@@ -1,5 +1,6 @@
 package com.codingmates.ghidra.intellij.ide.settings
 
+import com.codingmates.ghidra.intellij.ide.GhidraBundle
 import com.codingmates.ghidra.intellij.ide.model.createApplicationLayoutProxy
 import com.codingmates.ghidra.intellij.ide.model.resolveGhidraModuleJar
 import com.codingmates.ghidra.intellij.ide.newProjectWizard.GhidraProjectType
@@ -150,13 +151,13 @@ class GhidraSettings(private val project: Project): PersistentStateComponent<Ghi
         val psiFile = PsiManager.getInstance(project)
             .findFile(gradlePropertiesFile) as? PropertiesFile ?: return
 
-        val existingProperty = psiFile.findPropertyByKey("GHIDRA_INSTALL_DIR")
+        val existingProperty = psiFile.findPropertyByKey(GhidraBundle.message("ghidra.gradle.path.key"))
 
         WriteCommandAction.runWriteCommandAction(project) {
             if (existingProperty != null) {
                 existingProperty.setValue(path)
             } else {
-                psiFile.addProperty("GHIDRA_INSTALL_DIR", path)
+                psiFile.addProperty(GhidraBundle.message("ghidra.gradle.path.key"), path)
             }
         }
     }
@@ -168,7 +169,7 @@ class GhidraSettings(private val project: Project): PersistentStateComponent<Ghi
         val psiFile = PsiManager.getInstance(project)
             .findFile(gradlePropertiesFile) as? PropertiesFile ?: return ""
 
-        val existingProperty = psiFile.findPropertyByKey("GHIDRA_INSTALL_DIR")
+        val existingProperty = psiFile.findPropertyByKey(GhidraBundle.message("ghidra.gradle.path.key"))
         return existingProperty?.value ?:  ""
     }
 }

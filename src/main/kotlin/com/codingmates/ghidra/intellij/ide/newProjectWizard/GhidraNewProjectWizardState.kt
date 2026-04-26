@@ -12,6 +12,6 @@ object GhidraNewProjectWizardState {
     private val props = PropertiesComponent.getInstance()
 
     var lastPath: String
-        get() = props.getValue(KEY_PATH, GhidraBundle.message("ghidra.facet.editor.installation.empty"))
+        get() = props.getValue(KEY_PATH, GhidraBundle.message("ghidra.editor.path.default"))
         set(value) { props.setValue(KEY_PATH, value) }
 }
