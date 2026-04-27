@@ -11,6 +11,18 @@ The following additional features have been added to the IDE:
 
 <!-- Plugin description end -->
 
+## Contents
+
+- [Building](#building)
+- [Usage](#usage)
+  - [Creating a New Ghidra Project](#creating-a-new-ghidra-project)
+  - [Importing an Existing Ghidra Project](#importing-an-existing-ghidra-project)
+    - [Importing a Ghidra Module Project](#importing-a-ghidra-module-project)
+    - [Importing a Ghidra Script Project](#importing-a-ghidra-script-project)
+  - [Launching Ghidra](#launching-ghidra)
+  - [Ghidra Settings](#ghidra-settings)
+    - [Ghidra Module Project](#ghidra-module-project)
+    - [Ghidra Script Project](#ghidra-script-project)
 ## Building
 
 1. Check if your IntelliJ IDEA version and edition matches the properties set in `gradle.properties` file:
