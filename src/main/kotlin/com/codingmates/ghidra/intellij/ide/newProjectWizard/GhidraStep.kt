@@ -17,11 +17,9 @@ import com.intellij.ide.wizard.NewProjectWizardStep
 import com.intellij.ide.wizard.setupProjectFromBuilder
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
-import com.intellij.openapi.module.Module
 import com.intellij.openapi.observable.util.toUiPathProperty
 import com.intellij.openapi.observable.util.transform
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.projectRoots.impl.jdkDownloader.JdkDownloadTask
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withPathToTextConvertor
 import com.intellij.openapi.ui.BrowseFolderDescriptor.Companion.withTextToPathConvertor
@@ -102,15 +100,14 @@ class GhidraStep(parent: NewProjectWizardStep) :
     }
 
     override fun setupProject(project: Project) {
-//        super.setupProject(project)
         GhidraNewProjectWizardState.lastPath = path
 
         // Set up Intellij Module. This will be overwritten by Gradle if a Ghidra Module project is being created.
         // Still left it here since it also handles the downloading of JDK.
         val builder = JavaModuleBuilder()
         configureModuleBuilder(project, builder)
-        val module = setupProjectFromBuilder(project, builder)
-        module?.let(::startJdkDownloadIfNeeded)
+        setupProjectFromBuilder(project, builder)
+        project.service<JdkDownloadService>().scheduleDownloadSdk(context.projectJdk)
     }
 
     private fun configureModuleBuilder(project: Project, builder: JavaModuleBuilder) {
@@ -128,14 +125,6 @@ class GhidraStep(parent: NewProjectWizardStep) :
             // New module in an existing project: set module JDK
             val isSameSdk = ProjectRootManager.getInstance(project).projectSdk?.name == jdkIntent.name
             builder.moduleJdk = if (isSameSdk) null else context.projectJdk
-        }
-    }
-
-    private fun startJdkDownloadIfNeeded(module: Module) {
-        val sdkDownloadTask = sdkDownloadTask
-        if (sdkDownloadTask is JdkDownloadTask) {
-            // Download the SDK on project creation
-            module.project.service<JdkDownloadService>().scheduleDownloadJdk(sdkDownloadTask, module, context.isCreatingNewProject)
         }
     }
 
