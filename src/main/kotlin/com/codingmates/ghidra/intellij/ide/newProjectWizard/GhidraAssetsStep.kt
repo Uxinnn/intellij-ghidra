@@ -10,13 +10,16 @@ import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.ide.projectWizard.generators.AssetsNewProjectWizardStep
 import com.intellij.ide.wizard.NewProjectWizardBaseData.Companion.baseData
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.module.ModuleManager
+import com.intellij.openapi.progress.currentThreadCoroutineScope
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.roots.ProjectRootManager
-import org.jetbrains.plugins.gradle.service.project.open.canLinkAndRefreshGradleProject
-import org.jetbrains.plugins.gradle.service.project.open.linkAndRefreshGradleProject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.jetbrains.plugins.gradle.service.project.open.linkAndSyncGradleProject
 
 
 class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(parent) {
@@ -32,7 +35,7 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
             WriteAction.runAndWait<Throwable> {
                 ghidraSettings.type = parent.type
                 if (parent.type == GhidraProjectType.Script) {
-                    ghidraSettings.path = parent.path  // This is not ran if project is a Module since it's set in
+                    ghidraSettings.path = parent.ghidraPath  // This is not ran if project is a Module since it's set in
                                                        // gradle.properties in the setupModuleAssets method.
                     val ghidraLib = ghidraSettings.syncGhidraLibrary()
                     module?.let { ModuleRootModificationUtil.addDependency(it, ghidraLib) }
@@ -82,10 +85,10 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
 
         // Create compulsory files
         addTemplateAsset("build.gradle", "build.gradle", buildMap {
-            put(GhidraBundle.message("ghidra.gradle.path.key"), parent.path)
+            put(GhidraBundle.message("ghidra.gradle.path.key"), parent.ghidraPath)
         })
         addTemplateAsset("gradle.properties", "gradle.properties", buildMap {
-            put(GhidraBundle.message("ghidra.gradle.path.key"), parent.path)
+            put(GhidraBundle.message("ghidra.gradle.path.key"), parent.ghidraPath)
         })
         addTemplateAsset("extension.properties", "extension.properties", emptyMap())
         addTemplateAsset("Module.manifest", "Module.manifest", emptyMap())
@@ -125,9 +128,8 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
 
         // Load build.gradle
         val basePath = project.basePath ?: return
-        ApplicationManager.getApplication().invokeLater {
-            if (!canLinkAndRefreshGradleProject(basePath, project)) return@invokeLater
-            linkAndRefreshGradleProject(basePath, project)
+        currentThreadCoroutineScope().launch(Dispatchers.EDT) {
+            linkAndSyncGradleProject(project, basePath)
         }
     }
 
