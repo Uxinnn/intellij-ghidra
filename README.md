@@ -28,7 +28,7 @@ The following additional features have been added to the IDE:
 1. Check if your IntelliJ IDEA version and edition matches the properties set in `gradle.properties` file:
 ```
 platformType = IU
-platformVersion = 2025.3.4
+platformVersion = 2026.1
 ```
 For the IntelliJ IDEA Community Edition you need to keep `IC` as is, for the Ultimate edition it should become `IU`.
 
@@ -80,7 +80,7 @@ idea {
     }
 }
 ```
-4. Refresh gradle.
+6. Refresh gradle.
 
 #### Importing a Ghidra Script Project
 
@@ -93,7 +93,7 @@ idea {
 
 Launching Ghidra from IntelliJ will automatically attach your module to Ghidra for easier debugging and testing (If you are working on a Ghidra module project).
 
-If your created a new Ghidra project, the Ghidra run configuration should have been created for you in the process. 
+If you've created a new Ghidra project, the Ghidra run configuration should have been created for you in the process. 
 If not, follow the steps below.
 
 > [!NOTE]

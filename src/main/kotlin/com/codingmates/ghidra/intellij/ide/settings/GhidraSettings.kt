@@ -146,8 +146,7 @@ class GhidraSettings(private val project: Project): PersistentStateComponent<Ghi
         val utilsJar = Path(path).resolveGhidraModuleJar("Framework", "Utility")
         val utilsClassLoader = UrlClassLoader.build().files(listOf(utilsJar)).get()
         val layout = createApplicationLayoutProxy(utilsClassLoader, File(path))
-        val ghidraModules = layout.modules.mapValues { it.value.moduleRoot.canonicalPath }
-        return ghidraModules
+        return layout.modules.mapValues { it.value.moduleRoot.canonicalPath }
     }
 
     private fun guessGhidraProjectType(): GhidraProjectType {
@@ -156,15 +155,12 @@ class GhidraSettings(private val project: Project): PersistentStateComponent<Ghi
     }
 
     private fun writeGhidraPathToGradleProperties(path: String) {
-        val gradlePropertiesFile = project.guessProjectDir()
-            ?.findOrCreateChildData(this, "gradle.properties") ?: return
-
-        val psiFile = PsiManager.getInstance(project)
-            .findFile(gradlePropertiesFile) as? PropertiesFile ?: return
-
-        val existingProperty = psiFile.findPropertyByKey(GhidraBundle.message("ghidra.gradle.path.key"))
-
+        val projectDir = project.guessProjectDir() ?: return
         WriteCommandAction.runWriteCommandAction(project) {
+            val gradlePropertiesFile = projectDir.findOrCreateChildData(this, "gradle.properties")
+            val psiFile = PsiManager.getInstance(project)
+                .findFile(gradlePropertiesFile) as? PropertiesFile ?: return@runWriteCommandAction
+            val existingProperty = psiFile.findPropertyByKey(GhidraBundle.message("ghidra.gradle.path.key"))
             if (existingProperty != null) {
                 existingProperty.setValue(path)
             } else {

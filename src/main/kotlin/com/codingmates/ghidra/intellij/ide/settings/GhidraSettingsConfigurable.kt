@@ -30,6 +30,7 @@ class GhidraSettingsConfigurable(var project: Project) : BoundConfigurable("Ghid
     private lateinit var pathField: Cell<TextFieldWithBrowseButton>
 
     override fun apply() {
+        if (settings.type == GhidraProjectType.Module) return
         try {
             validateGhidraPath(pathField.component.text)
         } catch (e: GhidraPathValidationException) {
@@ -38,7 +39,7 @@ class GhidraSettingsConfigurable(var project: Project) : BoundConfigurable("Ghid
         super.apply()
         ApplicationManager.getApplication().runWriteAction {
             val ghidraLib = settings.syncGhidraLibrary()
-            val module = ModuleManager.getInstance(project).findModuleByName(project.name)
+            val module = ModuleManager.getInstance(project).modules.firstOrNull()
             module?.let {
                 val hasGhidraLib = ModuleRootManager.getInstance(module)
                     .orderEntries

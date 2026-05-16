@@ -30,7 +30,7 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
     override fun setupProject(project: Project) {
         super.setupProject(project)
         val ghidraSettings = requireNotNull(GhidraSettings.getInstance(project))
-        val module = ModuleManager.getInstance(project).findModuleByName(project.name)
+        val module = ModuleManager.getInstance(project).modules.firstOrNull()
         ApplicationManager.getApplication().invokeLater {
             WriteAction.runAndWait<Throwable> {
                 ghidraSettings.type = parent.type
@@ -67,7 +67,9 @@ class AssetsStep(private val parent: GhidraStep) : AssetsNewProjectWizardStep(pa
     }
 
     fun setupModuleAssets(project: Project) {
-        val name = baseData?.name
+        val name = requireNotNull(baseData?.name) {
+            "New project wizard base data must contain a non-null project name before creating module assets."
+        }
         // Have to use this to inject the default props to the templates since apparently `addTemplateAsset`
         // doesn't do it.
         val props = FileTemplateManager.getInstance(project).defaultProperties.entries.associate {

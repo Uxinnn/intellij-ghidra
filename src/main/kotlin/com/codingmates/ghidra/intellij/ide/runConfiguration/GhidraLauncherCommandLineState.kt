@@ -10,6 +10,7 @@ import com.intellij.execution.configurations.JavaParameters
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.util.JavaParametersUtil
 import org.jetbrains.annotations.NotNull
+import java.io.IOException
 import kotlin.io.path.Path
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.listDirectoryEntries
@@ -37,9 +38,11 @@ class GhidraLauncherCommandLineState(
         }
         javaParameters.programParametersList.addParametersString(configuration.getArgs())
         javaParameters.vmParametersList.addAll(GHIDRA_CLI_OPTS)
-        javaParameters.vmParametersList.add(
-            "-Dghidra.external.modules=${environment.project.basePath}"
-        )  // Attach current module to Ghidra
+        project.basePath?.let { basePath ->
+            javaParameters.vmParametersList.add(
+                "-Dghidra.external.modules=$basePath"
+            )  // Attach current module to Ghidra
+        }
         JavaParametersUtil.configureProject(
             project,
             javaParameters,
@@ -55,9 +58,14 @@ class GhidraLauncherCommandLineState(
         val ghidraHome = Path(GhidraSettings.getInstance(project).path)
         javaParameters.classPath.add(ghidraHome.resolve("Ghidra/Framework/Utility/lib/Utility.jar").toFile())
         val regex = Regex(GhidraBundle.message("ghidra.regex.log4j"))
-        val s = ghidraHome.resolve("Ghidra/Framework/Generic/lib").listDirectoryEntries()
-            .filter { path -> path.isRegularFile() && regex.matches(path.fileName.toString()) }
-        s.forEach { path -> javaParameters.classPath.add(path.toAbsolutePath().toString()) }
+        val genericLib = ghidraHome.resolve("Ghidra/Framework/Generic/lib")
+        try {
+            genericLib.listDirectoryEntries()
+                .filter { path -> path.isRegularFile() && regex.matches(path.fileName.toString()) }
+                .forEach { path -> javaParameters.classPath.add(path.toAbsolutePath().toString()) }
+        } catch (e: IOException) {
+            throw ExecutionException("Failed to scan Ghidra classpath directory '$genericLib': ${e.message}", e)
+        }
         setupJavaParameters(javaParameters)
         return javaParameters
     }

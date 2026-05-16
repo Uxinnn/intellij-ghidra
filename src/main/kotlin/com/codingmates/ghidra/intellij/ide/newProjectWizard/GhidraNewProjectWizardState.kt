@@ -1,6 +1,5 @@
 package com.codingmates.ghidra.intellij.ide.newProjectWizard
 
-import com.codingmates.ghidra.intellij.ide.GhidraBundle
 import com.intellij.ide.util.PropertiesComponent
 
 /**
@@ -12,6 +11,6 @@ object GhidraNewProjectWizardState {
     private val props = PropertiesComponent.getInstance()
 
     var lastPath: String
-        get() = props.getValue(KEY_PATH, GhidraBundle.message("ghidra.editor.path.default"))
+        get() = props.getValue(KEY_PATH, "")
         set(value) { props.setValue(KEY_PATH, value) }
 }

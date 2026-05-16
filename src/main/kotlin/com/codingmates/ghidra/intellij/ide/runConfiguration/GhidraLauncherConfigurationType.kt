@@ -10,11 +10,15 @@ import com.intellij.openapi.project.Project
 
 
 class GhidraLauncherConfigurationType : ConfigurationTypeBase(
-    GhidraBundle.message("ghidra.run-configuration.type.id"),
+    ID,
     GhidraBundle.message("ghidra.run-configuration.type.name"),
     GhidraBundle.message("ghidra.run-configuration.type.description"),
     GhidraIcons.Ghidra
 ), ConfigurationType {
+
+    companion object {
+        const val ID = "GhidraLauncherConfiguration"
+    }
 
     init {
         addFactory(
