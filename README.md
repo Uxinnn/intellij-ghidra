@@ -1,4 +1,4 @@
-# intellij-ghidra
+# GhidraDev
 
 <!-- Plugin description -->
 Adds support for Ghidra extensions and scripts written in Java to IntellIJ. 
@@ -9,6 +9,7 @@ The following additional features have been added to the IDE:
 - Code Assistance from the Ghidra API
 - Run Configuration integration to launch the current extension
 
+(Formerly named intellij-ghidra)
 <!-- Plugin description end -->
 
 ## Contents
@@ -32,11 +33,18 @@ platformVersion = 2026.1
 ```
 For the IntelliJ IDEA Community Edition you need to keep `IC` as is, for the Ultimate edition it should become `IU`.
 
-2. Run the [Gradle](https://gradle.org) to build the plugin
+2. Also ensure your IntelliJ IDEA version is within bounds in `gradle.properties`:
+```
+pluginSinceBuild = 262
+pluginUntilBuild = 262.*
+```
+
+3. Run the [Gradle](https://gradle.org) to build the plugin
 ```sh
 gradle buildPlugin
 ```
-3. The resulting ZIP ready for installation is located at `build/distributions/intellij-ghidra-*.zip`
+
+4. The resulting ZIP ready for installation is located at `build/distributions/GhidraDev-*.zip`
 
 ## Usage
 
